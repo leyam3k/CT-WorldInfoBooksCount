@@ -50,6 +50,24 @@ For issues, questions, or feature requests, please open an issue on the [GitHub 
 
 Contributions are welcome! Feel free to submit pull requests for bug fixes or new features.
 
+## Changelog
+
+### 1.1.0
+- **Constant Entries Display**: Panel now shows all constant/always-active entries from your lorebooks
+- **Preview Triggers**: Real-time preview of which entries would be triggered based on your current input text
+- **Regex Support**: Trigger preview supports both plain text keywords and regex patterns
+- **Enhanced Badge**: Badge now shows format `X-Y` where X is book count and Y is triggered entries count
+- **Improved Panel Layout**: Reorganized panel with sections for Active Books, Constant Entries, and Preview Triggers
+
+### 1.0.0
+- Initial release
+- Badge counter showing active World Info book count
+- Animated badge with pop-in, pop-out, and bounce effects
+- Detailed panel with categorized lorebook breakdown
+- Smart categorization by source (Global, Character Primary, Character Extra/Aux, Chat-bound, Persona-bound)
+- Real-time updates on chat/character/settings changes
+- CozyWI internal book filtering
+
 ## License
 
 This extension is released under the AGPLv3 License.

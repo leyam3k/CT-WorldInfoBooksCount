@@ -1,7 +1,7 @@
 import { eventSource, event_types, this_chid, characters, chat_metadata } from '../../../../script.js';
-import { world_info, selected_world_info } from '../../../world-info.js';
+import { world_info, selected_world_info, getSortedEntries } from '../../../world-info.js';
 import { power_user } from '../../../power-user.js';
-import { getCharaFilename, delay } from '../../../utils.js';
+import { getCharaFilename, delay, debounce } from '../../../utils.js';
 
 const MODULE_NAME = 'CT-WorldInfoBooksCount';
 
@@ -23,6 +23,9 @@ const init = () => {
         trigger.title = 'Active World Info Books';
         trigger.addEventListener('click', () => {
             panel.classList.toggle('stwbc--isActive');
+            if (panel.classList.contains('stwbc--isActive')) {
+                updateCounter(true);
+            }
         });
         leftSendForm.append(trigger);
     }
@@ -36,7 +39,7 @@ const init = () => {
         document.body.append(panel);
     }
 
-    let count = -1;
+    let currentBadgeValue = '';
     let previousBooks = [];
     let isUpdating = false;
 
@@ -99,39 +102,110 @@ const init = () => {
     };
 
     /**
-     * Update the badge count with animations
-     * @param {number} newCount - New count to display
+     * Parse regex from string key if applicable
+     * @param {string} key 
+     * @returns {RegExp|null}
+     */
+    const getRegexFromKey = (key) => {
+        if (typeof key === 'string' && key.startsWith('/') && key.lastIndexOf('/') > 0) {
+            const lastSlashIndex = key.lastIndexOf('/');
+            const pattern = key.slice(1, lastSlashIndex);
+            const flags = key.slice(lastSlashIndex + 1);
+            try {
+                return new RegExp(pattern, flags);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get constant and triggered entries
+     */
+    const getEntriesDetails = async () => {
+        const sortedEntries = await getSortedEntries();
+        const constantMap = {};
+        const triggerMap = {};
+        const input = document.getElementById('send_textarea')?.value || '';
+        const lowerInput = input.toLowerCase();
+
+        for (const entry of sortedEntries) {
+            if (entry.disable) continue;
+            if (entry.world && entry.world.includes('CozyWI')) continue;
+
+            // Constant entries
+            if (entry.constant) {
+                if (!constantMap[entry.world]) constantMap[entry.world] = [];
+                constantMap[entry.world].push(entry);
+            } 
+            // Triggered entries
+            else {
+                let isMatch = false;
+                let matchKey = '';
+                
+                if (Array.isArray(entry.key)) {
+                    for (const key of entry.key) {
+                        const regex = getRegexFromKey(key);
+                        if (regex) {
+                            if (regex.test(input)) {
+                                isMatch = true;
+                                matchKey = key;
+                                break;
+                            }
+                        } else if (typeof key === 'string') {
+                            if (lowerInput.includes(key.toLowerCase())) {
+                                isMatch = true;
+                                matchKey = key;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (isMatch) {
+                    if (!triggerMap[entry.world]) triggerMap[entry.world] = [];
+                    // Store the matched key for display
+                    entry._matchedKey = matchKey;
+                    triggerMap[entry.world].push(entry);
+                }
+            }
+        }
+
+        return { constantMap, triggerMap };
+    };
+
+    /**
+     * Update the badge label with animations
+     * @param {string} newValue - New string to display (e.g. "2" or "2-4")
      * @param {string[]} newBooks - Array of book names
      */
-    const updateBadge = async (newCount, newBooks) => {
-        // Prevent race conditions from multiple simultaneous updates
+    const updateBadge = async (newValue, newBooks) => {
         if (isUpdating) return;
         isUpdating = true;
 
         try {
-            if (count !== newCount) {
-                if (newCount === 0) {
-                    // Animating out
+            const isNoBooks = newValue.startsWith('0');
+            
+            if (currentBadgeValue !== newValue) {
+                if (isNoBooks) {
                     trigger.classList.add('stwbc--badge-out');
                     await delay(510);
-                    trigger.setAttribute('data-stwbc--badge-count', newCount.toString());
+                    trigger.setAttribute('data-stwbc--badge-count', newValue);
                     trigger.classList.remove('stwbc--badge-out');
-                } else if (count === 0 || count === -1) {
-                    // Animating in (or first load)
-                    trigger.setAttribute('data-stwbc--badge-count', newCount.toString());
+                } else if (currentBadgeValue === '' || currentBadgeValue.startsWith('0')) {
+                    trigger.setAttribute('data-stwbc--badge-count', newValue);
                     trigger.classList.add('stwbc--badge-in');
                     await delay(510);
                     trigger.classList.remove('stwbc--badge-in');
                 } else {
-                    // Bounce animation for count change
-                    trigger.setAttribute('data-stwbc--badge-count', newCount.toString());
+                    trigger.setAttribute('data-stwbc--badge-count', newValue);
                     trigger.classList.add('stwbc--badge-bounce');
                     await delay(1010);
                     trigger.classList.remove('stwbc--badge-bounce');
                 }
-                count = newCount;
+                currentBadgeValue = newValue;
             } else if (newBooks.length > 0) {
-                // Check if books changed even if count is the same
                 const newSet = new Set(newBooks);
                 const oldSet = new Set(previousBooks);
                 const hasChanges = newBooks.some((b) => !oldSet.has(b)) || previousBooks.some((b) => !newSet.has(b));
@@ -148,64 +222,139 @@ const init = () => {
     };
 
     /**
-     * Update the panel content with book list
-     * @param {Object} details - Categorized book details
-     * @param {number} totalCount - Total unique book count
+     * Create entries list HTML
+     * @param {string} title
+     * @param {Object} entriesMap
+     * @param {boolean} showMatch
      */
-    const updatePanel = (details, totalCount) => {
-        panel.innerHTML = '';
+    const renderEntriesSection = (title, entriesMap, showMatch = false) => {
+        const container = document.createDocumentFragment();
+        const header = document.createElement('div');
+        header.classList.add('stwbc--section-header');
+        header.textContent = title;
+        container.append(header);
 
-        if (totalCount === 0) {
-            panel.innerHTML = '<div class="stwbc--empty">No active lorebooks</div>';
-            return;
+        const books = Object.keys(entriesMap).sort();
+        if (books.length === 0) {
+            const empty = document.createElement('div');
+            empty.classList.add('stwbc--empty');
+            empty.textContent = 'None';
+            container.append(empty);
+            return container;
         }
 
+        for (const book of books) {
+            const group = document.createElement('div');
+            group.classList.add('stwbc--book-group');
+            
+            const bookName = document.createElement('div');
+            bookName.classList.add('stwbc--book-name');
+            bookName.innerHTML = `<div class="stwbc--icon fa-solid fa-fw fa-book"></div> ${book}`;
+            group.append(bookName);
+
+            for (const entry of entriesMap[book]) {
+                const entryEl = document.createElement('div');
+                entryEl.classList.add('stwbc--entry');
+                let text = entry.comment || entry.content || 'Untitled';
+                if (showMatch && entry._matchedKey) {
+                    const matchSpan = `<span class="stwbc--match-preview">[${entry._matchedKey}]</span>`;
+                    entryEl.innerHTML = `${matchSpan} ${text}`;
+                } else {
+                    entryEl.textContent = text;
+                }
+                entryEl.title = entry.content;
+                group.append(entryEl);
+            }
+            container.append(group);
+        }
+        return container;
+    };
+
+    /**
+     * Update the panel content with book list
+     * @param {Object} details - Categorized book details
+     * @param {Object} constantEntries
+     * @param {Object} triggeredEntries
+     */
+    const updatePanel = (details, constantEntries, triggeredEntries) => {
+        panel.innerHTML = '';
+
+        // 1. Active Lorebooks Summary
+        const activeContainer = document.createElement('div');
+        const activeHeader = document.createElement('div');
+        activeHeader.classList.add('stwbc--section-header');
+        activeHeader.textContent = 'Active Books';
+        activeHeader.style.marginTop = '0';
+        activeHeader.style.borderTop = 'none';
+        activeContainer.append(activeHeader);
+
+        let hasActiveBooks = false;
         for (const [category, books] of Object.entries(details)) {
             if (books.length === 0) continue;
+            hasActiveBooks = true;
 
             const categoryEl = document.createElement('div');
             categoryEl.classList.add('stwbc--category');
             categoryEl.textContent = category;
-            panel.append(categoryEl);
+            activeContainer.append(categoryEl);
 
             for (const book of books) {
                 const bookEl = document.createElement('div');
                 bookEl.classList.add('stwbc--book');
-
-                const icon = document.createElement('div');
-                icon.classList.add('stwbc--icon');
-                icon.classList.add('fa-solid', 'fa-fw', 'fa-book-atlas');
-                bookEl.append(icon);
-
-                const title = document.createElement('div');
-                title.classList.add('stwbc--title');
-                title.textContent = book;
-                title.title = book;
-                bookEl.append(title);
-
-                panel.append(bookEl);
+                bookEl.innerHTML = `<div class="stwbc--icon fa-solid fa-fw fa-book-atlas"></div><div class="stwbc--title" title="${book}">${book}</div>`;
+                activeContainer.append(bookEl);
             }
         }
+
+        if (!hasActiveBooks) {
+             const empty = document.createElement('div');
+             empty.classList.add('stwbc--empty');
+             empty.textContent = 'No active lorebooks';
+             activeContainer.append(empty);
+        }
+        panel.append(activeContainer);
+
+        // 2. Constant Entries
+        panel.append(renderEntriesSection('Constant Entries', constantEntries));
+
+        // 3. Preview Triggers
+        panel.append(renderEntriesSection('Preview Triggers', triggeredEntries, true));
     };
 
     /**
      * Main update function
+     * @param {boolean} forcePanelUpdate
      */
-    const updateCounter = () => {
-        setTimeout(() => {
-            const data = getDetailedLorebooks();
+    const updateCounter = async (forcePanelUpdate = false) => {
+        const bookData = getDetailedLorebooks();
+        const { constantMap, triggerMap } = await getEntriesDetails();
 
-            // Update trigger title
-            if (data.count > 0) {
-                trigger.title = `Active Lorebooks (${data.count}):\n${data.allNames.join('\n')}`;
-            } else {
-                trigger.title = 'World Info Books';
-            }
+        const triggerCount = Object.values(triggerMap).flat().length;
+        const badgeLabel = triggerCount > 0 ? `${bookData.count}-${triggerCount}` : `${bookData.count}`;
 
-            // Update badge and panel
-            updateBadge(data.count, data.allNames);
-            updatePanel(data.details, data.count);
-        }, 200);
+        // Update trigger title
+        if (bookData.count > 0 || triggerCount > 0) {
+            trigger.title = `Active Lorebooks (${bookData.count})${triggerCount > 0 ? ` + Triggers (${triggerCount})` : ''}:\n${bookData.allNames.join('\n')}`;
+        } else {
+            trigger.title = 'World Info Books';
+        }
+
+        updateBadge(badgeLabel, bookData.allNames);
+
+        if (panel.classList.contains('stwbc--isActive') || forcePanelUpdate) {
+            updatePanel(bookData.details, constantMap, triggerMap);
+        }
+    };
+
+    const debouncedUpdate = debounce(() => updateCounter(true), 300);
+
+    // Monitor textarea
+    const monitorTextarea = () => {
+        const textarea = document.getElementById('send_textarea');
+        if (textarea) {
+            textarea.removeEventListener('input', debouncedUpdate);
+            textarea.addEventListener('input', debouncedUpdate);
+        }
     };
 
     // Close panel when clicking outside
@@ -216,16 +365,18 @@ const init = () => {
     });
 
     // Register event listeners
-    eventSource.on(event_types.WORLDINFO_SETTINGS_UPDATED, updateCounter);
-    eventSource.on(event_types.SETTINGS_UPDATED, updateCounter);
-    eventSource.on(event_types.CHAT_CHANGED, updateCounter);
-    eventSource.on(event_types.APP_READY, updateCounter);
+    eventSource.on(event_types.WORLDINFO_SETTINGS_UPDATED, () => updateCounter(false));
+    eventSource.on(event_types.SETTINGS_UPDATED, () => updateCounter(false));
+    eventSource.on(event_types.CHAT_CHANGED, () => updateCounter(false));
+    eventSource.on(event_types.APP_READY, () => {
+        updateCounter(false);
+        monitorTextarea();
+    });
 
-    // Also listen for world info dropdown changes
-    $(document).on('change', '#world_info', updateCounter);
+    $(document).on('change', '#world_info', () => updateCounter(false));
 
-    // Initial update
-    updateCounter();
+    monitorTextarea();
+    updateCounter(false);
 
     console.log(`[${MODULE_NAME}] Extension loaded`);
 };
