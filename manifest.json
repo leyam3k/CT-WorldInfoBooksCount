@@ -1,11 +1,11 @@
 {
-    "display_name": "CT-WorldInfoTopBarCount",
+    "display_name": "CT-WorldInfoBooksCount",
     "loading_order": 100,
     "requires": [],
     "optional": [],
     "js": "index.js",
-    "style": "style.css",
+    "css": "style.css",
     "author": "leyam3k",
     "version": "1.0.0",
-    "homePage": "https://github.com/leyam3k/CT-WorldInfoTopBarCount"
+    "homePage": "https://github.com/leyam3k/CT-WorldInfoBooksCount"
 }

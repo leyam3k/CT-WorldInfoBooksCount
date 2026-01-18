@@ -1,53 +1,181 @@
-#WI-SP-button .drawer-toggle {
-    position: relative !important;
-    overflow: visible !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-#WIDrawerIcon {
-    flex-shrink: 0 !important;
-}
-
-#st-wi-counter-badge {
-    display: none !important;
-    position: absolute !important;
-    top: -4px !important;   
-    right: -4px !important; 
-    
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    z-index: 1000 !important;
-
-    /* Slightly larger to accommodate text better */
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    border-radius: 50% !important;
-    
-    background-color: var(--SmartThemeQuoteColor, #ff4444) !important;
-    color: white !important;
-    
+/* CT-WorldInfoBooksCount - Trigger Button */
+.stwbc--trigger {
+    position: relative;
     display: flex;
-    align-items: center !important;
-    justify-content: center !important;
-    
-    font-family: var(--mainFontFamily, sans-serif) !important;
-    font-size: 10px !important;
-    font-weight: 900 !important;
-    line-height: 18px !important; 
-    
-    border: 1.5px solid var(--SmartThemeBlurTintColor, white) !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.6) !important;
-    transition: transform 0.1s ease;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 200ms;
+    cursor: pointer;
+    anchor-name: --stwbc--wiAnchor;
+    order: 13;
 }
 
-#st-wi-counter-badge:hover {
-    transform: scale(1.2);
-    filter: brightness(1.2);
+.stwbc--trigger:hover {
+    opacity: 1;
 }
 
-#st-wi-counter-badge.show-badge {
-    display: flex !important;
+.stwbc--trigger:not([data-stwbc--badge-count="0"]):hover::after {
+    opacity: 1;
+}
+
+/* Badge styling */
+.stwbc--trigger:not([data-stwbc--badge-count="0"])::after {
+    content: attr(data-stwbc--badge-count);
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    font-size: 0.65em;
+    font-weight: bold;
+    font-family: var(--mainFontFamily);
+    color: white;
+    background: rgba(100, 100, 100, 1);
+    line-height: 1;
+    padding: 0.2em 0.35em;
+    border-radius: 50%;
+    min-width: 1.2em;
+    text-align: center;
+    pointer-events: none;
+    transition: 200ms;
+}
+
+/* Badge animations */
+.stwbc--trigger:not([data-stwbc--badge-count="0"]).stwbc--badge-in::after {
+    animation: stwbc--badge-popin 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.stwbc--trigger:not([data-stwbc--badge-count="0"]).stwbc--badge-out::after {
+    animation: stwbc--badge-popin 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse;
+}
+
+.stwbc--trigger:not([data-stwbc--badge-count="0"]).stwbc--badge-bounce::after {
+    animation: stwbc--badge-bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation-iteration-count: 2;
+}
+
+/* Panel styling */
+.stwbc--panel {
+    filter: drop-shadow(1px 1px 2px var(--black50a));
+    z-index: 30000;
+    overflow: auto;
+    border-radius: 10px;
+    aspect-ratio: unset;
+    padding: 0.5em;
+    display: none;
+    flex-direction: column;
+    font-size: small;
+    max-height: 50vh;
+    max-width: min(400px, 90vw);
+    background-color: var(--secondaryBg, var(--SmartThemeBlurTintColor));
+    position: fixed;
+    position-anchor: --stwbc--wiAnchor;
+    position-area: top span-right;
+    position-try-fallbacks: flip-block, flip-inline;
+    margin-bottom: 0.5em;
+}
+
+.stwbc--panel.stwbc--isActive {
+    display: flex;
+}
+
+/* Empty state */
+.stwbc--empty {
+    opacity: 0.6;
+    font-style: italic;
+    padding: 0.5em;
+}
+
+/* Category header */
+.stwbc--category {
+    font-weight: bold;
+    color: var(--SmartThemeQuoteColor);
+    margin-top: 0.5em;
+}
+
+.stwbc--category:first-child {
+    margin-top: 0;
+}
+
+/* Book entry */
+.stwbc--book {
+    gap: 0.5em;
+    padding-left: 1em;
+    display: flex;
+    align-items: center;
+    opacity: 0.75;
+    cursor: help;
+    transition: 200ms;
+}
+
+.stwbc--book:hover {
+    opacity: 1;
+}
+
+/* Book icon */
+.stwbc--icon {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+/* Book title */
+.stwbc--title {
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Keyframe animations */
+@keyframes stwbc--badge-popin {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    48% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    80% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+}
+
+@keyframes stwbc--badge-bounce {
+    0% {
+        opacity: 0.5;
+        transform: scale(1) translateY(0);
+    }
+    10% {
+        opacity: 1;
+        transform: scale(1.1, 0.9) translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: scale(0.9, 1.1) translateY(-0.5em);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05, 0.95) translateY(0);
+    }
+    57% {
+        opacity: 1;
+        transform: scale(1) translateY(-0.125em);
+    }
+    64% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    90% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    100% {
+        opacity: 0.5;
+        transform: scale(1) translateY(0);
+    }
 }
