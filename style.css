@@ -1,0 +1,53 @@
+#WI-SP-button .drawer-toggle {
+    position: relative !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#WIDrawerIcon {
+    flex-shrink: 0 !important;
+}
+
+#st-wi-counter-badge {
+    display: none !important;
+    position: absolute !important;
+    top: -4px !important;   
+    right: -4px !important; 
+    
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 1000 !important;
+
+    /* Slightly larger to accommodate text better */
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    border-radius: 50% !important;
+    
+    background-color: var(--SmartThemeQuoteColor, #ff4444) !important;
+    color: white !important;
+    
+    display: flex;
+    align-items: center !important;
+    justify-content: center !important;
+    
+    font-family: var(--mainFontFamily, sans-serif) !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 18px !important; 
+    
+    border: 1.5px solid var(--SmartThemeBlurTintColor, white) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.6) !important;
+    transition: transform 0.1s ease;
+}
+
+#st-wi-counter-badge:hover {
+    transform: scale(1.2);
+    filter: brightness(1.2);
+}
+
+#st-wi-counter-badge.show-badge {
+    display: flex !important;
+}
